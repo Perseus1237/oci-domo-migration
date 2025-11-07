@@ -905,19 +905,19 @@ Dashboard → Query Orchestrator → Cloud Amplifier → Snowflake/Redshift
 │                            KEY INSIGHTS                                   │
 ├───────────────────────────────────────────────────────────────────────────┤
 │                                                                           │
-│  1. GRAVITON DOMINANCE: 80% of compute on ARM (AWS Graviton2/3)          │
-│     → Perfect fit for OCI Ampere (ARM) instances                         │
+│  1. GRAVITON FOOTPRINT: 80% of compute on ARM (AWS Graviton2/3)          │
+│     → Great fit for OCI Ampere (ARM) instances                         │
 │     → Drop-in replacement, similar performance                            │
 │                                                                           │
 │  2. MASSIVE STORAGE: 37+ PB in S3, growing 15%/year                      │
 │     → OCI auto-tiering will save 30-40% on storage costs                 │
 │     → No S3 API changes needed (S3-compatible)                            │
 │                                                                           │
-│  3. EGRESS NIGHTMARE: 41TB/month × $0.09 = $3,575/month (US-East only)  │
+│  3. EGRESS HIGH COST: 41TB/month × $0.09 = $3,575/month (US-East only)  │
 │     → OCI: First 10TB FREE, then $0.0085/GB (10x cheaper)                │
 │     → This alone saves $40K/month                                         │
 │                                                                           │
-│  4. NAT GATEWAY WASTE: $23K/month for accessing S3                        │
+│  4. NAT GATEWAY OVERHEAD: $23K/month for accessing S3                        │
 │     → OCI Service Gateway is FREE for Object Storage access              │
 │     → Eliminate all NAT costs                                             │
 │                                                                           │
@@ -929,7 +929,6 @@ Dashboard → Query Orchestrator → Cloud Amplifier → Snowflake/Redshift
 │     → Simple lift-and-shift for most workloads                           │
 │     → Can evaluate OKE later if needed                                    │
 └───────────────────────────────────────────────────────────────────────────┘
-
 ═══════════════════════════════════════════════════════════════════════════
                          ARCHITECTURE UPDATED: 2025-01-15
                     Based on Domo provided AWS billing data 
