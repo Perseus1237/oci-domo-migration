@@ -550,3 +550,387 @@ Dashboard → Query Orchestrator → Cloud Amplifier → Snowflake/Redshift
 → Result Streaming → Presentation Layer → User
 
 ================================================================================
+
+
+
+
+================================================================================
+            DOMO ANALYTICS CONTROL PLANE - AWS CURRENT STATE
+                    (Based on Domo provided Billing Data)
+================================================================================
+
+                                    ┌─────────────────────────────────────┐
+                                    │      AWS REGIONS (Multi-Region)     │
+                                    │   Primary: US-EAST-1 (Virginia)     │
+                                    │   Secondary: AP-NORTHEAST-1 (Tokyo) │
+                                    └─────────────────────────────────────┘
+                                                    │
+                    ┌───────────────────────────────┴───────────────────────────────┐
+                    │                                                               │
+        ┌───────────▼──────────┐                                      ┌────────────▼─────────┐
+        │   TUNDRA COMPUTE     │                                      │    VERTICA COMPUTE   │
+        │   (Analytics Engine) │                                      │  (Complex Queries)   │
+        └──────────────────────┘                                      └──────────────────────┘
+                    │                                                               │
+    ┌───────────────┴───────────────┐                         ┌────────────────────┴────────┐
+    │                               │                         │                             │
+    │  EC2 INSTANCES (BY TYPE):     │                         │  RDS INSTANCES (BY TYPE):   │
+    │                               │                         │                             │
+    │  Memory-Optimized (r-series): │                         │  Memory-Optimized (r):      │
+    │  • r7gd.medium: 1,171 inst    │                         │  • db.r6g.2xlarge: 135 inst │
+    │    - 9,370 vCPUs (ARM)        │                         │    - 1,080 vCPU, 8,640 GB   │
+    │    - 69.5 TB local NVMe       │                         │  • db.r6g.xlarge: 85 inst   │
+    │  • r6gd.medium: 1,039 inst    │                         │    - 340 vCPU, 2,720 GB     │
+    │    - 8,315 vCPUs (ARM)        │                         │  • db.r7g.xlarge: 49 inst   │
+    │    - 61.7 TB local NVMe       │                         │    - 196 vCPU, 1,568 GB     │
+    │  • r6a.large: 235 inst        │                         │  • db.r7g.2xlarge: 47 inst  │
+    │    - 1,884 vCPUs (AMD)        │                         │    - 376 vCPU, 3,008 GB     │
+    │  • r7a.medium: 1,290 inst     │                         │  • db.r7g.4xlarge: 10 inst  │
+    │    - 10,320 vCPUs (AMD)       │                         │    - 160 vCPU, 1,280 GB     │
+    │  • r6i.large: 1,405 inst      │                         │  • db.r6g.8xlarge: 10 inst  │
+    │    - 11,245 vCPUs (Intel)     │                         │    - 20 vCPU, 160 GB        │
+    │                               │                         │  • db.t4g.small: 3 inst     │
+    │  Compute-Optimized (c):       │                         │  • db.m6g.xlarge: 1 inst    │
+    │  • c6gd.medium: 3,742 inst    │                         │                             │
+    │    - 7,484 vCPUs (ARM)        │                         │  General Purpose (m/t):     │
+    │  • c7gd.medium: 822 inst      │                         │  • db.m5.xlarge: 9 inst     │
+    │    - 1,645 vCPUs (ARM)        │                         │  • db.t3.large: 53 inst     │
+    │  • c6i.large: 94 inst         │                         │  • db.t3.micro: 17 inst     │
+    │    - 188 vCPUs (Intel)        │                         │  • db.t3.medium: 11 inst    │
+    │                               │                         │  • db.t3.small: 11 inst     │
+    │  General Purpose (m):         │                         │  • db.m5.4xlarge: 1 inst    │
+    │  • m6gd.medium: 5,254 inst    │                         │  • db.r5.large: 2 inst      │
+    │    - 21,016 vCPUs (ARM)       │                         │  • db.r5.2xlarge: 1 inst    │
+    │  • m6a.large: 56 inst         │                         │                             │
+    │    - 224 vCPUs (AMD)          │                         │  ──────────────────────────  │
+    │  • m7a.medium: 6 inst         │                         │  TOTAL RDS:                 │
+    │    - 24 vCPUs (AMD)           │                         │  • 2,606 instances          │
+    │  • m5.large: 1,028 inst       │                         │  • 19,361 GB total memory   │
+    │    - 4,115 vCPUs (Intel)      │                         │  • Multi-AZ: Yes            │
+    │                               │                         │  • ARM: 93% (Graviton2/3)   │
+    │  Storage-Optimized (i):       │                         │  • AMD: 4%                  │
+    │  • i4g.large: 100 inst        │                         │  • Intel: 3%                │
+    │    - 400 vCPUs (ARM)          │                         └─────────────────────────────┘
+    │    - 468.75 TB local NVMe     │
+    │  • i3en.large: 82 inst        │
+    │    - 512.5 TB local NVMe      │
+    │                               │
+    │  ──────────────────────────   │
+    │  TOTAL EC2:                   │
+    │  • ~18,000+ instances         │
+    │  • ~85,000+ vCPUs             │
+    │  • 80% ARM (Graviton2/3)      │
+    │  • 15% AMD (EPYC)             │
+    │  • 5% Intel (Xeon)            │
+    └───────────────────────────────┘
+                    │
+                    ├─────────────────────────────┐
+                    │                             │
+        ┌───────────▼──────────┐      ┌──────────▼─────────────┐
+        │   ELASTIC LOAD       │      │   AUTO SCALING GROUPS  │
+        │   BALANCING (ALB)    │      │                        │
+        │                      │      │  • Tundra Clusters     │
+        │  • Application LBs   │      │  • Target: 70% CPU     │
+        │  • 100+ Load Balancers│     │  • Scale: 1-50 nodes   │
+        │  • SSL Termination   │      │  • Health checks: 30s  │
+        │  • Path-based routing│      │  • Cooldown: 5 min     │
+        └──────────────────────┘      └────────────────────────┘
+                    │
+                    │
+        ┌───────────▼───────────────────────────────────────────────────┐
+        │                   AMAZON S3 (PRIMARY DATA LAYER)              │
+        │                                                               │
+        │  BLOB STORAGE BREAKDOWN:                                      │
+        │  ┌────────────────────────────────────────────────────────┐  │
+        │  │  Standard (Hot Data):                                  │  │
+        │  │  • 10.22 PB (10,718,009 GB)                           │  │
+        │  │  • Active query data, recent ETL outputs              │  │
+        │  │  • Accessed daily by Tundra clusters                  │  │
+        │  └────────────────────────────────────────────────────────┘  │
+        │                                                               │
+        │  ┌────────────────────────────────────────────────────────┐  │
+        │  │  Infrequent Access (Warm Data):                        │  │
+        │  │  • 26.93 PB (28,242,519 GB)                           │  │
+        │  │  • Historical data, accessed weekly/monthly            │  │
+        │  │  • Auto-transitioned after 30 days                     │  │
+        │  └────────────────────────────────────────────────────────┘  │
+        │                                                               │
+        │  ┌────────────────────────────────────────────────────────┐  │
+        │  │  Archive (Cold Data):                                  │  │
+        │  │  • 0.26 PB (270,549 GB)                               │  │
+        │  │  • Compliance archives, rarely accessed                │  │
+        │  │  • Retrieval time: 1-5 hours                          │  │
+        │  └────────────────────────────────────────────────────────┘  │
+        │                                                               │
+        │  ═══════════════════════════════════════════════════════════  │
+        │  TOTAL S3 STORAGE: 37.41 PB (38,311,596 GB)                  │
+        │                                                               │
+        │  S3 API OPERATIONS (DAILY):                                   │
+        │  • GET requests: 332,447,939 (~3.85K/sec)                    │
+        │  • PUT requests: 246,653,666 (~2.85K/sec)                    │
+        │  • Metadata operations: 43,670,125                            │
+        │  • DELETE operations: 6,510                                   │
+        │  • Lifecycle transitions: 4,348,014                           │
+        │                                                               │
+        │  S3 FEATURES ENABLED:                                         │
+        │  • Versioning: Enabled (30 days retention)                   │
+        │  • Encryption: SSE-S3 (AES-256)                              │
+        │  • Access Logging: Enabled → CloudWatch Logs                 │
+        │  • Lifecycle Policies: 3 policies (Standard→IA→Archive)      │
+        │  • Cross-Region Replication: Tokyo (disaster recovery)        │
+        │  • Intelligent Tiering: Enabled on select buckets            │
+        └───────────────────────────────────────────────────────────────┘
+                    │
+        ┌───────────▼──────────┐
+        │   AMAZON EBS         │
+        │   (Attached Storage) │
+        │                      │
+        │  • 524.38 TB total   │
+        │  • 33 volumes        │
+        │  • ~16 TB per volume │
+        │  • Type: gp3 (SSD)   │
+        │  • IOPS: 16,000      │
+        │  • Throughput: 1000MB│
+        │  • Snapshots: Daily  │
+        └──────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│                          NETWORKING LAYER                                 │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  VPC (Virtual Private Cloud)                                    │    │
+│  │  • CIDR: 10.0.0.0/8 (16M IPs)                                  │    │
+│  │  • 6 Availability Zones across US-EAST-1                       │    │
+│  │  • Private subnets: 10.0.0.0/16 - 10.5.0.0/16                 │    │
+│  │  • Public subnets: 10.100.0.0/16 (ALBs only)                  │    │
+│  │  • Database subnets: 10.200.0.0/16 (RDS, isolated)            │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                           │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  DATA TRANSFER (MONTHLY):                                       │    │
+│  │  ┌──────────────────────────────────────────────────────────┐  │    │
+│  │  │  Regional (Internal): 492,185 GB                         │  │    │
+│  │  │  • VPC-to-VPC within region (FREE)                       │  │    │
+│  │  │  • EC2 ↔ RDS: ~200 TB                                   │  │    │
+│  │  │  • EC2 ↔ S3: ~292 TB                                    │  │    │
+│  │  └──────────────────────────────────────────────────────────┘  │    │
+│  │                                                                 │    │
+│  │  ┌──────────────────────────────────────────────────────────┐  │    │
+│  │  │  Internet Inbound: 166,706 GB (FREE)                     │  │    │
+│  │  │  • Customer API calls to ALBs                            │  │    │
+│  │  │  • Data uploads from customers                           │  │    │
+│  │  └──────────────────────────────────────────────────────────┘  │    │
+│  │                                                                 │    │
+│  │  ┌──────────────────────────────────────────────────────────┐  │    │
+│  │  │  Internet Outbound: 41,463 GB                            │  │    │
+│  │  │  • US-EAST: 41,463 GB × $0.09/GB = $3,575/month         │  │    │
+│  │  │  • TOKYO: Similar egress costs                           │  │    │
+│  │  │  • Dashboard responses, API results to customers         │  │    │
+│  │  └──────────────────────────────────────────────────────────┘  │    │
+│  │                                                                 │    │
+│  │  ┌──────────────────────────────────────────────────────────┐  │    │
+│  │  │  Direct Connect:                                         │  │    │
+│  │  │  • Inbound: 161 GB (customer private connections)        │  │    │
+│  │  │  • Outbound: 24 GB                                       │  │    │
+│  │  │  • 10 Gbps dedicated link                                │  │    │
+│  │  │  • Cost: $6,570/month per region                         │  │    │
+│  │  └──────────────────────────────────────────────────────────┘  │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                           │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  NAT GATEWAYS:                                                  │    │
+│  │  • 6 NAT Gateways (1 per AZ)                                   │    │
+│  │  • $0.045/hour + $0.045/GB processed                           │    │
+│  │  • ~500 TB/month through NAT                                   │    │
+│  │  • Cost: ~$23K/month                                           │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                           │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  SECURITY GROUPS & NACLs:                                       │    │
+│  │  • 500+ Security Groups                                        │    │
+│  │  • Rules: Allow 443 (HTTPS), 5432 (PostgreSQL), 3306 (MySQL)  │    │
+│  │  • Deny all inbound by default                                 │    │
+│  │  • Stateful filtering                                          │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+└───────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│                        SUPPORTING AWS SERVICES                            │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────────┐     │
+│  │  CLOUDWATCH      │  │  CLOUDTRAIL      │  │  AWS KMS          │     │
+│  │                  │  │                  │  │                   │     │
+│  │  • 100K+ metrics │  │  • Audit logs    │  │  • Encryption keys│     │
+│  │  • 10K+ alarms   │  │  • 90 day retain │  │  • S3 encryption  │     │
+│  │  • Log groups:   │  │  • Compliance    │  │  • EBS encryption │     │
+│  │    - Tundra logs │  │                  │  │  • RDS encryption │     │
+│  │    - RDS logs    │  │                  │  │                   │     │
+│  │    - VPC logs    │  │                  │  │                   │     │
+│  │  • Retention: 30d│  │                  │  │                   │     │
+│  └──────────────────┘  └──────────────────┘  └───────────────────┘     │
+│                                                                           │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────────┐     │
+│  │  ROUTE 53        │  │  AWS IAM         │  │  SECRETS MANAGER  │     │
+│  │                  │  │                  │  │                   │     │
+│  │  • DNS hosting   │  │  • 500+ roles    │  │  • DB credentials │     │
+│  │  • Health checks │  │  • 2000+ policies│  │  • API keys       │     │
+│  │  • Failover      │  │  • MFA enforced  │  │  • Rotation: 90d  │     │
+│  │  • Latency-based │  │  • SAML SSO      │  │  • Encrypted: KMS │     │
+│  └──────────────────┘  └──────────────────┘  └───────────────────┘     │
+│                                                                           │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────────┐     │
+│  │  ELASTICACHE     │  │  KINESIS         │  │  SQS              │     │
+│  │  (Redis)         │  │                  │  │                   │     │
+│  │                  │  │  • Data streams  │  │  • Message queues │     │
+│  │  • Cache tier    │  │  • ETL pipelines │  │  • Async jobs     │     │
+│  │  • 50+ clusters  │  │  • Real-time     │  │  • 100M+ msgs/day │     │
+│  │  • r6g.large     │  │    analytics     │  │  • FIFO queues    │     │
+│  │  • 6 shards/node │  │  • 500 shards    │  │                   │     │
+│  └──────────────────┘  └──────────────────┘  └───────────────────┘     │
+│                                                                           │
+│  ┌──────────────────────────────────────────────────────────────┐       │
+│  │  AWS LAMBDA (Serverless):                                    │       │
+│  │  • ETL processing: 10,000+ functions                         │       │
+│  │  • API Gateway backends                                       │       │
+│  │  • S3 event triggers (file uploads → processing)             │       │
+│  │  • CloudWatch event processing                                │       │
+│  │  • Cost: ~$5K/month (1B invocations)                         │       │
+│  └──────────────────────────────────────────────────────────────┘       │
+│                                                                           │
+│  ┌──────────────────────────────────────────────────────────────┐       │
+│  │  ELASTIC KUBERNETES SERVICE (EKS) - Optional/Partial:        │       │
+│  │  • Used for: Microservices, API layer                        │       │
+│  │  • Nodes: m6g.xlarge (ARM Graviton2)                         │       │
+│  │  • Pods: ~5,000 running                                       │       │
+│  │  • CNI: AWS VPC CNI plugin                                    │       │
+│  │  • Load Balancer: AWS Load Balancer Controller               │       │
+│  └──────────────────────────────────────────────────────────────┘       │
+└───────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│                         COST BREAKDOWN SUMMARY                            │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  MONTHLY AWS COSTS (APPROXIMATE):                                         │
+│  ┌────────────────────────────────────────────────────────────┐          │
+│  │  EC2 Compute:                          $2,309,266/month    │          │
+│  │  • ~18,000 instances (mostly Graviton ARM)                │          │
+│  │  • Mix of on-demand + reserved instances (70% reserved)   │          │
+│  └────────────────────────────────────────────────────────────┘          │
+│                                                                           │
+│  ┌────────────────────────────────────────────────────────────┐          │
+│  │  RDS Database:                         $243,403/month      │          │
+│  │  • 2,606 RDS instances                                     │          │
+│  │  • Multi-AZ deployments                                    │          │
+│  │  • Automated backups (7 days)                             │          │
+│  └────────────────────────────────────────────────────────────┘          │
+│                                                                           │
+│  ┌────────────────────────────────────────────────────────────┐          │
+│  │  S3 Storage:                           $590,226/month      │          │
+│  │  • 37.41 PB total                                          │          │
+│  │  • Standard: $10.22PB × $23/TB = $235K                    │          │
+│  │  • Infrequent: $26.93PB × $12.5/TB = $336K               │          │
+│  │  • Archive: $0.26PB × $4/TB = $1K                         │          │
+│  │  • API requests: $18K/month                                │          │
+│  └────────────────────────────────────────────────────────────┘          │
+│                                                                           │
+│  ┌────────────────────────────────────────────────────────────┐          │
+│  │  EBS Storage:                          $43,253/month       │          │
+│  │  • 524.38 TB × $80/TB                                      │          │
+│  └────────────────────────────────────────────────────────────┘          │
+│                                                                           │
+│  ┌────────────────────────────────────────────────────────────┐          │
+│  │  Data Transfer:                        $19,990/month       │          │
+│  │  • Internet egress: 41 TB × $0.09 = $3.6K (US-East)      │          │
+│  │  • Direct Connect: $13K (2 regions)                        │          │
+│  │  • Inter-region: $3.4K                                     │          │
+│  └────────────────────────────────────────────────────────────┘          │
+│                                                                           │
+│  ┌────────────────────────────────────────────────────────────┐          │
+│  │  Other Services:                       $94,000/month       │          │
+│  │  • Load Balancers: $3K                                     │          │
+│  │  • NAT Gateways: $23K                                      │          │
+│  │  • ElastiCache: $15K                                       │          │
+│  │  • CloudWatch: $8K                                         │          │
+│  │  • Lambda: $5K                                             │          │
+│  │  • EKS: $10K                                               │          │
+│  │  • Route53, KMS, Secrets Manager, etc: $30K              │          │
+│  └────────────────────────────────────────────────────────────┘          │
+│                                                                           │
+│  ═══════════════════════════════════════════════════════════════          │
+│  TOTAL MONTHLY AWS COST: ~$3,300,000                                      │
+│  ANNUAL AWS COST: ~$39,600,000                                            │
+│  ═══════════════════════════════════════════════════════════════          │
+│                                                                           │
+│  OCI ESTIMATED MONTHLY COST: ~$1,190,000 (64% SAVINGS)                   │
+│  ANNUAL OCI COST: ~$14,280,000                                            │
+│  ANNUAL SAVINGS: ~$25,320,000                                             │
+│                                                                           │
+│  PRIMARY SAVINGS DRIVERS:                                                 │
+│  • Compute: 40-50% cheaper (OCI Flex shapes)                             │
+│  • Egress: FREE first 10TB/month (vs $0.09/GB AWS)                      │
+│  • Storage: 30% cheaper with auto-tiering                                │
+│  • No NAT Gateway costs (OCI Service Gateway is free)                    │
+└───────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│                        MIGRATION PRIORITIES                               │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  PHASE 1 (Months 1-3): TUNDRA MIGRATION                                  │
+│  ─────────────────────────────────────────────────────────────────        │
+│  Target: ~18,000 EC2 instances → OCI Compute                             │
+│  • r7gd/r6gd → OCI VM.Standard.E5.Flex (ARM-based)                       │
+│  • m6gd → OCI VM.Optimized3.Flex                                          │
+│  • c6gd → OCI VM.Standard.A1.Flex                                         │
+│  • Intel instances → OCI VM.Standard3.Flex                                │
+│  • S3 37PB → OCI Object Storage (parallel sync)                          │
+│  • Keep Vertica on AWS (Phase 2)                                         │
+│  Expected Savings: $1.8M/month                                            │
+│                                                                           │
+│  PHASE 2 (Months 4-6): DATABASE MIGRATION                                │
+│  ─────────────────────────────────────────────────────────────────────    │
+│  Target: 2,606 RDS instances → OCI Autonomous Database or Base DB        │
+│  • Evaluate: Vertica on OCI vs migrate to ADB                           │
+│  • PostgreSQL RDS → OCI Base Database Service                            │
+│  • Test data sync, validate query compatibility                          │
+│  Expected Additional Savings: $300K/month                                 │
+│                                                                           │
+│  DECOMMISSION AWS (Month 7): Final cutover, validate, terminate AWS      │
+└───────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│                            KEY INSIGHTS                                   │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  1. GRAVITON DOMINANCE: 80% of compute on ARM (AWS Graviton2/3)          │
+│     → Perfect fit for OCI Ampere (ARM) instances                         │
+│     → Drop-in replacement, similar performance                            │
+│                                                                           │
+│  2. MASSIVE STORAGE: 37+ PB in S3, growing 15%/year                      │
+│     → OCI auto-tiering will save 30-40% on storage costs                 │
+│     → No S3 API changes needed (S3-compatible)                            │
+│                                                                           │
+│  3. EGRESS NIGHTMARE: 41TB/month × $0.09 = $3,575/month (US-East only)  │
+│     → OCI: First 10TB FREE, then $0.0085/GB (10x cheaper)                │
+│     → This alone saves $40K/month                                         │
+│                                                                           │
+│  4. NAT GATEWAY WASTE: $23K/month for accessing S3                        │
+│     → OCI Service Gateway is FREE for Object Storage access              │
+│     → Eliminate all NAT costs                                             │
+│                                                                           │
+│  5. INSTANCE SPRAWL: 18,000+ EC2 instances is complex to manage          │
+│     → OCI Flex shapes reduce this (dynamic sizing)                       │
+│     → Fewer instances, same capacity                                      │
+│                                                                           │
+│  6. NO KUBERNETES DEPENDENCY: Minimal EKS usage                           │
+│     → Simple lift-and-shift for most workloads                           │
+│     → Can evaluate OKE later if needed                                    │
+└───────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════
+                         ARCHITECTURE UPDATED: 2025-01-15
+                    Based on Domo provided AWS billing data 
+═══════════════════════════════════════════════════════════════════════════
