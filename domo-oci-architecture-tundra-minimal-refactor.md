@@ -748,6 +748,52 @@ MIGRATION PHILOSOPHY: "Lift, Shift, and Enhance"
 
 
 ================================================================================
+              OCI MANAGED AI (AWS Bedrock / GCP Vertex Equivalent)
+================================================================================
+
+SERVICE MAPPING (OCI NATIVE)
+- AWS Bedrock (managed FM inference) → OCI Generative AI
+- GCP Vertex AI (ML platform + endpoints) → OCI Data Science (+ OCI Generative AI)
+
+WHAT DOMO WOULD USE ON OCI (FOR CHAT + GENAI FEATURES)
+- OCI Generative AI: chat, text generation, summarization, embeddings
+- Optional: Dedicated AI Cluster + Private Endpoint (strong isolation / private networking)
+- RAG building blocks:
+  - Object Storage (knowledge sources, prompts, eval sets)
+  - Vector store: OCI OpenSearch OR Oracle Database 23ai vector search (ADB/DB23ai)
+- Classic ML workflows: OCI Data Science (notebooks, jobs, model deployments, pipelines)
+
+MODELS (REGION-DEPENDENT; CHECK OCI CONSOLE → Generative AI → Models)
+- Cohere Command R / Command R+ (chat)
+- Meta Llama 3 / 3.1 / 3.2 (chat)
+- NOTE: Google Gemini models are available via OCI Generative AI in some regions/serving modes; verify in the OCI model catalog. If a specific Gemini model isn't available in the target region, call Vertex AI cross-cloud.
+
+SETUP (HIGH LEVEL)
+1) Create an AI compartment (example: domo-ai).
+2) Decide shared endpoint vs Dedicated AI Cluster; add Private Endpoint if required.
+3) Grant IAM permissions (POC broad → then least-privilege).
+4) Use Instance Principals / Workload Identity for workloads on OCI (avoid API keys).
+5) Replace Bedrock SDK calls with OCI Generative AI inference calls; run prompt regression tests.
+
+OCI IAM POLICY EXAMPLES (FROM OCI GENERATIVE AI DOCS)
+- Broad (admin):
+  - allow group <your-group-name> to manage generative-ai-family in compartment <your-compartment-name>
+- Inference-only (recommended for apps/services):
+  - allow group <your-group-name> to use generative-ai-chat in compartment <your-compartment-name>
+  - allow group <your-group-name> to use generative-ai-text-generation in compartment <your-compartment-name>
+  - allow group <your-group-name> to use generative-ai-text-summarization in compartment <your-compartment-name>
+  - allow group <your-group-name> to use generative-ai-text-embedding in compartment <your-compartment-name>
+- If you create/manage GenAI resources (endpoints, dedicated clusters, private endpoints):
+  - allow group <your-group-name> to manage generative-ai-endpoint in compartment <your-compartment-name>
+  - allow group <your-group-name> to manage generative-ai-dedicated-ai-cluster in compartment <your-compartment-name>
+  - allow group <your-group-name> to manage generative-ai-private-endpoint in compartment <your-compartment-name>
+  - allow group <your-group-name> to read generative-ai-work-request in compartment <your-compartment-name>
+- Fine-tuning datasets in Object Storage (if used):
+  - allow group <your-group-name> to manage object-family in compartment <compartment-with-bucket>
+  - allow group <your-group-name> to use object-family in compartment <compartment-with-bucket>
+
+
+================================================================================
                         RISK MITIGATION STRATEGIES
 ================================================================================
 

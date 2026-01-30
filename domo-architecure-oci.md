@@ -1459,7 +1459,7 @@ I'll continue with the remaining layers in the next response due to length. Woul
 ================================================================================
 
 ┌───────────────────────────────────────────────────────────────────────────┐
-│                    DR REGION: US-PHOENIX-1 (PHX)                          │
+│                     TBD: DR REGION: US-PHOENIX-1 (PHX)                        │
 │                    RTO: 2 hours, RPO: <5 minutes                          │
 ├───────────────────────────────────────────────────────────────────────────┤
 │                                                                           │
